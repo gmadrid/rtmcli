@@ -2,13 +2,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module RtmApi (RtmConfig(..),
+               RtmM,
                authUrl,
                getFrob,
                getToken,
               ) where
 
 import ClassyPrelude
-import Control.Monad.Except (catchError, runExceptT, throwError, ExceptT(..))
+import Control.Monad.Except (ExceptT(..))
 import Crypto.Hash.MD5
 import Data.Aeson
 import Network.HTTP.Client
