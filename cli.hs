@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import ClassyPrelude
+import Control.Monad.Except (runExceptT)
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
 import Prelude (Read(..), read)
@@ -57,7 +58,7 @@ acquireAndSaveToken rc mgr = do
    _ -> ioError $ userError "No token. User stopped authentication sequence."
 
   -- TODO: get rid of this pattern match
-  (Right frob) <- getFrob rc mgr
+  (Right frob) <- runExceptT $ getFrob rc mgr
 
   let au = authUrl rc frob
   spawnCommand . C8.unpack $ "open '" ++ au ++ "'"
@@ -65,7 +66,7 @@ acquireAndSaveToken rc mgr = do
   getLine :: IO String
 
   -- TODO: get rid of this pattern match
-  (Right token) <- getToken rc mgr frob
+  (Right token) <- runExceptT $ getToken rc mgr frob
   let rc' = rc { token = token }
 
   hd <- getHomeDirectory
