@@ -25,19 +25,19 @@ readConfig = do
 parseFile :: String -> RtmM RtmConfig
 parseFile s = do
   let ps = span (/= '=') <$> lines s
-  let cleanPs = fmap clean ps
+  cleanPs <- mapM clean ps
   RtmConfig <$> 
     lookupConfig cleanPs "apiKey" <*>
     lookupConfig cleanPs "secret" <*>
     lookupConfig cleanPs "token"
 
 
-clean :: (String, String) -> (String, String)
-clean (a, '=':bs) = (trim a, trim bs)
+clean :: (String, String) -> RtmM (String, String)
+clean (a, '=':bs) = return (trim a, trim bs)
                     where trim = f . f
                           f = reverse . dropWhile isSpace
 -- Throw an error here.
-clean (a, _) = (a, "MISSING")
+clean (a, _) = throwError $ fromString ("Missing config value for '" ++ a ++ "'")
 
 lookupConfig :: [(String, String)] -> String -> RtmM ByteString
 lookupConfig ps k =
