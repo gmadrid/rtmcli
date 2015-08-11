@@ -13,6 +13,7 @@ import System.Directory
 
 import qualified Prelude
 
+
 readConfig :: RtmM RtmConfig
 readConfig = do
   fn <- getFilename
@@ -24,19 +25,24 @@ readConfig = do
 parseFile :: String -> RtmM RtmConfig
 parseFile s = do
   let ps = span (/= '=') <$> lines s
-  let f = reverse . dropWhile isSpace
-  let trim = f . f
-  let clean (a, '=':bs) = (trim a, trim bs)
   let cleanPs = fmap clean ps
   RtmConfig <$> 
     lookupConfig cleanPs "apiKey" <*>
     lookupConfig cleanPs "secret" <*>
     lookupConfig cleanPs "token"
 
+
+clean :: (String, String) -> (String, String)
+clean (a, '=':bs) = (trim a, trim bs)
+                    where trim = f . f
+                          f = reverse . dropWhile isSpace
+-- Throw an error here.
+clean (a, _) = (a, "")
+
 lookupConfig :: [(String, String)] -> String -> RtmM ByteString
 lookupConfig ps k =
   -- TODO: improve this error message
-  maybe (throwError "Missing config parameter")
+  maybe (throwError $ "Missing config parameter: " ++ fromString k)
     (return . fromString)
     (Prelude.lookup k ps)
 
@@ -53,12 +59,4 @@ checkFile fn = return ()
 
 getContents :: String -> RtmM String
 getContents = readFile
-
-
-
-
-  -- hd <- liftIO getHomeDirectory
-  -- let fn = hd </> ".rtmcli2"
-  -- c <- readFile fn
-  -- return . read $ c
 
