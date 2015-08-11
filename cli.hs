@@ -26,6 +26,14 @@ ensureToken rc mgr = if token rc == mempty
                      then acquireAndSaveToken rc mgr
                      else return rc
 
+askYorN :: IO () -> LByteString -> RtmM ()
+askYorN f errMsg = do
+  liftIO f
+  y <- getLine
+  case y of
+   ('y':_) -> return ()
+   _       -> throwError errMsg
+
 acquireAndSaveToken :: RtmConfig -> Manager -> RtmM RtmConfig
 acquireAndSaveToken rc mgr = do
   let msg = asText
@@ -33,14 +41,8 @@ acquireAndSaveToken rc mgr = do
             \To proceed, a browser window will open. Follow the instructions in the\n\
             \browser, come back here, and hit the <Return> key.\n\n\
             \Type 'y' and hit <Return> to proceed."
-  hPutStrLn stderr msg
 
-  -- TODO: put y/n in a function of its own.
-  y <- getLine
-  case y of
-   ('y':_) -> return ()
-   _ -> throwError "No token. User stopped authentication sequence."
-
+  q <- askYorN (hPutStrLn stderr msg) "No token. User stopped authentication sequence."
   frob <- getFrob rc mgr
 
   let au = authUrl rc frob
