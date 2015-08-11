@@ -37,7 +37,7 @@ clean (a, '=':bs) = (trim a, trim bs)
                     where trim = f . f
                           f = reverse . dropWhile isSpace
 -- Throw an error here.
-clean (a, _) = (a, "")
+clean (a, _) = (a, "MISSING")
 
 lookupConfig :: [(String, String)] -> String -> RtmM ByteString
 lookupConfig ps k =
