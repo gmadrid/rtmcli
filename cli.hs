@@ -7,6 +7,7 @@ import Network.HTTP.Client
 import Network.HTTP.Client.TLS
 import Prelude (Read(..), read)
 import RtmApi
+import RtmArgs
 import System.Directory
 import System.Exit
 import System.FilePath
@@ -68,10 +69,13 @@ acquireAndSaveToken rc mgr = do
 -- 1. read in the config file.
 -- 2. if the token is missing, do the auth step and save it out.
 -- 3. if we have a token, then return the config.
-setup :: Manager -> RtmM RtmConfig
-setup mgr = do
+setup :: Options -> Manager -> RtmM RtmConfig
+setup opts mgr = do
   rc <- workOrDie readConfig
-  workOrDie $ ensureToken rc mgr
+  let rc' = if optRefreshToken opts
+            then rc { token = mempty }
+            else rc
+  workOrDie $ ensureToken rc' mgr
 
 
 showLists :: RtmConfig -> Manager -> RtmM ()
@@ -80,14 +84,15 @@ showLists rc m = do
   return ()
 
 
-runEverything :: Manager -> RtmM ()
-runEverything mgr = do
-  rc <- setup mgr
+runEverything :: Options -> Manager -> RtmM ()
+runEverything opts mgr = do
+  rc <- setup opts mgr
   workOrDie $ showLists rc mgr
 
 
 main = do
+  (opts, _) <- parseOpts
   mgr <- newManager tlsManagerSettings
-  runExceptT $ runEverything mgr
+  runExceptT $ runEverything opts mgr
 
   
