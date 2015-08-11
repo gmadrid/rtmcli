@@ -89,7 +89,8 @@ callMethod rc mgr m ps = do
             let mj = decode $ fromStrict c
             return $ maybe
               (Left "Decode from JSON failed.")
-              (\j -> Right j) mj
+              Right
+              mj
 
 
 getFrob :: RtmConfig -> Manager -> RtmM ByteString
@@ -113,11 +114,11 @@ getListList rc mgr = do
 
 signParams :: ByteString -> Params -> ByteString
 signParams secret ps = fromString dsp
-  where cps = concat . (secret:) . map (\(a,b) -> a ++ b) $ sort ps
+  where cps = concat . (secret:) . map (uncurry (++)) $ sort ps
         hsh = Crypto.Hash.MD5.hash cps
-        dsp = foldr (\w acc -> (twoDigitHex w) ++ acc) mempty hsh
-        twoDigitHex w = drop ((length s) - 2) s
-          where s = "00" ++ (showHex w mempty)
+        dsp = foldr (\w acc -> twoDigitHex w ++ acc) mempty hsh
+        twoDigitHex w = drop (length s - 2) s
+          where s = "00" ++ showHex w mempty
         
 
 
@@ -126,7 +127,7 @@ data RtmFrob = RtmFrob { rtmFrob :: String }
 
 instance FromJSON RtmFrob where
   parseJSON (Object v) = RtmFrob <$> (rsp >>= (.: frobJsonKey))
-    where rsp = (v .: rspJsonKey)
+    where rsp = v .: rspJsonKey
   parseJSON _ = mzero
   
 
@@ -139,8 +140,8 @@ instance FromJSON TokenResponse where
   parseJSON (Object v) = TokenResponse <$>
                          (auth >>= (.: tokenJsonKey)) <*>
                          (auth >>= (.: permsJsonKey))
-    where rsp = (v .: rspJsonKey)
-          auth = (rsp >>= (.: authJsonKey))
+    where rsp  = v .: rspJsonKey
+          auth = rsp >>= (.: authJsonKey)
   parseJSON _ = mzero
 
 data RtmListList = RtmListList {
@@ -150,8 +151,8 @@ data RtmListList = RtmListList {
 instance FromJSON RtmListList where
   parseJSON (Object v) = RtmListList <$>
                          (lsts >>= (.: listJsonKey))
-    where rsp = (v .: rspJsonKey)
-          lsts = (rsp >>= (.: listsJsonKey))
+    where rsp  = v .: rspJsonKey
+          lsts = rsp >>= (.: listsJsonKey)
   parseJSON _ = mzero
 
 data RtmList = RtmList {

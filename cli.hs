@@ -8,6 +8,7 @@ import Network.HTTP.Client.TLS
 import Prelude (Read(..), read)
 import RtmApi
 import RtmArgs
+import RtmConfig
 import System.Directory
 import System.Exit
 import System.FilePath
@@ -20,18 +21,10 @@ workOrDie f = f `catchError` (\e -> do
                                  hPutStrLn stderr $ tshow e
                                  liftIO exitFailure)
   
-readConfig :: RtmM RtmConfig
-readConfig = do
-  hd <- liftIO getHomeDirectory
-  let fn = hd </> ".rtmcli"
-  c <- readFile fn
-  return . read $ c
-
 ensureToken :: RtmConfig -> Manager -> RtmM RtmConfig
-ensureToken rc mgr = do
-  if token rc == mempty
-    then acquireAndSaveToken rc mgr
-    else return rc
+ensureToken rc mgr = if token rc == mempty
+                     then acquireAndSaveToken rc mgr
+                     else return rc
 
 acquireAndSaveToken :: RtmConfig -> Manager -> RtmM RtmConfig
 acquireAndSaveToken rc mgr = do
@@ -43,7 +36,7 @@ acquireAndSaveToken rc mgr = do
   hPutStrLn stderr msg
 
   -- TODO: put y/n in a function of its own.
-  y <- hGetLine stdin
+  y <- getLine
   case y of
    ('y':_) -> return ()
    _ -> throwError "No token. User stopped authentication sequence."
