@@ -5,6 +5,7 @@ module RtmApi (RtmConfig(..),
                RtmM,
                authUrl,
                getFrob,
+               getListList,
                getToken,
               ) where
 
@@ -31,11 +32,13 @@ data RtmConfig = RtmConfig {
 authBaseUrl = "https://www.rememberthemilk.com/services/auth/"
 baseUrl     = "https://api.rememberthemilk.com/services/rest/"
 
-methodGetFrob  = "rtm.auth.getFrob"
-methodGetToken = "rtm.auth.getToken"
+methodGetFrob      = "rtm.auth.getFrob"
+methodGetToken     = "rtm.auth.getToken"
+methodListsGetList = "rtm.lists.getList"
 
 apiKeyParam      = "api_key"
 apiSigParam      = "api_sig"
+authTokenParam   = "auth_token"
 formatParam      = "format"
 formatJsonValue  = "json"
 frobParam        = "frob"
@@ -45,6 +48,10 @@ permsDeleteValue = "delete"
 
 authJsonKey  = "auth"
 frobJsonKey  = "frob"
+idJsonKey    = "id"
+listJsonKey  = "list"
+listsJsonKey = "lists"
+nameJsonKey  = "name"
 permsJsonKey = "perms"
 rspJsonKey   = "rsp"
 tokenJsonKey = "token"
@@ -67,6 +74,10 @@ buildUrl r b ps = b ++ q
         q = renderSimpleQuery True $ (apiSigParam, sig) : ps'
 
 
+callAuthMethod :: FromJSON r => RtmConfig -> Manager -> ByteString -> Params -> RtmM r
+callAuthMethod rc mgr m ps = callMethod rc mgr m ((authTokenParam, token rc) : ps)
+  
+
 callMethod :: FromJSON r => RtmConfig -> Manager -> ByteString -> Params -> RtmM r
 callMethod rc mgr m ps = do
   let u = methodUrl rc m ps
@@ -74,6 +85,7 @@ callMethod rc mgr m ps = do
   ExceptT $ withResponse req mgr readResponse
     where readResponse rsp = do
             c <- brRead $ responseBody rsp
+--            putStrLn $ tshow c
             let mj = decode $ fromStrict c
             return $ maybe
               (Left "Decode from JSON failed.")
@@ -83,13 +95,20 @@ callMethod rc mgr m ps = do
 getFrob :: RtmConfig -> Manager -> RtmM ByteString
 getFrob rc mgr = do
   fr <- callMethod rc mgr methodGetFrob []
-  return . fromString . frob $ fr
+  return . fromString . rtmFrob $ fr
 
 
 getToken :: RtmConfig -> Manager -> ByteString -> RtmM ByteString
 getToken rc mgr f = do
   tk <- callMethod rc mgr methodGetToken [ (frobParam, f) ]
-  return . fromString . tokenToken $ tk
+  return . fromString . trToken $ tk
+
+
+getListList :: RtmConfig -> Manager -> RtmM [RtmList]
+getListList rc mgr = do
+  ll <- callAuthMethod rc mgr methodListsGetList []
+  putStrLn $ tshow ll
+  return . rtmListList $ ll
 
 
 signParams :: ByteString -> Params -> ByteString
@@ -102,24 +121,46 @@ signParams secret ps = fromString dsp
         
 
 
-data Frob = Frob { frob :: String }
+data RtmFrob = RtmFrob { rtmFrob :: String }
             deriving (Show)
 
-instance FromJSON Frob where
-  parseJSON (Object v) = Frob <$> (rsp >>= (.: frobJsonKey))
+instance FromJSON RtmFrob where
+  parseJSON (Object v) = RtmFrob <$> (rsp >>= (.: frobJsonKey))
     where rsp = (v .: rspJsonKey)
   parseJSON _ = mzero
   
 
-data TokenResp = TokenResp {
-  tokenToken :: String,
-  tokenPerms :: String
+data TokenResponse = TokenResponse {
+  trToken :: String,
+  trPerms :: String
   } deriving Show
 
-instance FromJSON TokenResp where
-  parseJSON (Object v) = TokenResp <$>
+instance FromJSON TokenResponse where
+  parseJSON (Object v) = TokenResponse <$>
                          (auth >>= (.: tokenJsonKey)) <*>
                          (auth >>= (.: permsJsonKey))
     where rsp = (v .: rspJsonKey)
           auth = (rsp >>= (.: authJsonKey))
+  parseJSON _ = mzero
+
+data RtmListList = RtmListList {
+  rtmListList :: [RtmList]
+  } deriving Show
+
+instance FromJSON RtmListList where
+  parseJSON (Object v) = RtmListList <$>
+                         (lsts >>= (.: listJsonKey))
+    where rsp = (v .: rspJsonKey)
+          lsts = (rsp >>= (.: listsJsonKey))
+  parseJSON _ = mzero
+
+data RtmList = RtmList {
+  rtmListName :: Text,
+  rtmListId :: Text
+  } deriving Show
+
+instance FromJSON RtmList where
+  parseJSON (Object v) = RtmList <$>
+                         (v .: nameJsonKey) <*>
+                         (v .: idJsonKey)
   parseJSON _ = mzero

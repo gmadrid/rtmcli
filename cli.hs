@@ -14,10 +14,6 @@ import System.Process
 
 import qualified Data.ByteString.Char8 as C8
 
-runCli :: RtmConfig -> Manager -> IO (Either ByteString ())
-runCli r m = do
-  return $ Right ()
-  
 workOrDie :: RtmM a -> RtmM a
 workOrDie f = f `catchError` (\e -> do
                                  hPutStrLn stderr $ tshow e
@@ -38,12 +34,14 @@ ensureToken rc mgr = do
 
 acquireAndSaveToken :: RtmConfig -> Manager -> RtmM RtmConfig
 acquireAndSaveToken rc mgr = do
+  let msg = asText
+            "\nYou have not authenticated to Remember The Milk.\n\
+            \To proceed, a browser window will open. Follow the instructions in the\n\
+            \browser, come back here, and hit the <Return> key.\n\n\
+            \Type 'y' and hit <Return> to proceed."
+  hPutStrLn stderr msg
+
   -- TODO: put y/n in a function of its own.
-  hPutStrLn stderr $ asText "You have not authenticated to Remember The Milk."
-  hPutStrLn stderr $ asText "If you wish to proceed, a browser window will open."
-  hPutStrLn stderr $ asText "When you have followed the instructions in the browser,"
-  hPutStrLn stderr $ asText "return here and hit the <Return> key."
-  hPutStrLn stderr $ asText "Do you wish to proceed? (Type 'y'.):"
   y <- hGetLine stdin
   case y of
    ('y':_) -> return ()
@@ -72,21 +70,24 @@ acquireAndSaveToken rc mgr = do
 -- 3. if we have a token, then return the config.
 setup :: Manager -> RtmM RtmConfig
 setup mgr = do
-  config <- workOrDie readConfig
-  workOrDie $ ensureToken config mgr
+  rc <- workOrDie readConfig
+  workOrDie $ ensureToken rc mgr
+
+
+showLists :: RtmConfig -> Manager -> RtmM ()
+showLists rc m = do
+  getListList rc m
+  return ()
 
 
 runEverything :: Manager -> RtmM ()
 runEverything mgr = do
-  config <- setup mgr
-  putStrLn $ tshow config
---  runCli config mgr
+  rc <- setup mgr
+  workOrDie $ showLists rc mgr
 
 
 main = do
   mgr <- newManager tlsManagerSettings
   runExceptT $ runEverything mgr
 
-  
-  
   
