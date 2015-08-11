@@ -51,10 +51,7 @@ acquireAndSaveToken rc mgr = do
   token <- getToken rc mgr frob
   let rc' = rc { token = token }
 
-  hd <- liftIO getHomeDirectory
-  let fn = hd </> ".rtmcli"
-  
-  writeFile fn (show rc')
+  writeConfig rc'
   return rc'
   
 

@@ -1,7 +1,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module RtmConfig (readConfig
+module RtmConfig (readConfig,
+                  writeConfig
                   ) where
 
 import ClassyPrelude
@@ -10,6 +11,7 @@ import Data.Char
 import Prelude (Read(..), read)
 import RtmApi
 import System.Directory
+import System.IO (withFile, IOMode(WriteMode))
 
 import qualified Prelude
 
@@ -20,6 +22,16 @@ readConfig = do
   checkFile fn
   c <- getContents fn
   parseFile c
+
+
+writeConfig :: RtmConfig -> RtmM ()
+writeConfig rc = do
+  fn <- getFilename
+  liftIO $ withFile fn WriteMode (\h -> do
+                                     hPutStrLn h ("apiKey = " ++ apiKey rc)
+                                     hPutStrLn h ("token = " ++ token rc)
+                                     hPutStrLn h ("secret = " ++ secret rc))
+  
 
 
 parseFile :: String -> RtmM RtmConfig
@@ -50,7 +62,7 @@ lookupConfig ps k =
 getFilename :: RtmM String
 getFilename = do
   hd <- liftIO getHomeDirectory
-  return $ hd </> ".rtmcli2"
+  return $ hd </> ".rtmcli"
   
 
 checkFile :: String -> RtmM ()
