@@ -85,7 +85,7 @@ callMethod rc mgr m ps = do
   ExceptT $ withResponse req mgr readResponse
     where readResponse rsp = do
             c <- brRead $ responseBody rsp
---            putStrLn $ tshow c
+---            putStrLn $ tshow c
             let mj = decode $ fromStrict c
             return $ maybe
               (Left "Decode from JSON failed.")

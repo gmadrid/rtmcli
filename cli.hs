@@ -64,10 +64,15 @@ acquireAndSaveToken rc mgr = do
 setup :: Options -> Manager -> RtmM RtmConfig
 setup opts mgr = do
   rc <- workOrDie readConfig
-  let rc' = if optRefreshToken opts
+  tokenOk <- checkToken rc
+  let rc' = if not tokenOk || optRefreshToken opts
             then rc { token = mempty }
             else rc
   workOrDie $ ensureToken rc' mgr
+
+
+checkToken :: RtmConfig -> RtmM Bool
+checkToken rc = return True
 
 
 showLists :: RtmConfig -> Manager -> RtmM ()
