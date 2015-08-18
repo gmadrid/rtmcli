@@ -4,9 +4,13 @@
 module RtmApi (RtmConfig(..),
                RtmM,
                authUrl,
+
                getFrob,
                getListList,
                getToken,
+
+               RtmList,
+               rtmListName
               ) where
 
 import ClassyPrelude
@@ -126,7 +130,7 @@ responseErr rsp = do
   -- TODO: improve the way that this reports errors in absence of some piece.
   Left $ case vals of
    []   -> "Badly formed 'err' Object in error response"
-   [v] -> fromChunks [ encodeUtf8 . mconcat $ ["Partially formed 'err' Object: ", v] ]
+   [v]  -> fromChunks [ encodeUtf8 . mconcat $ ["Partially formed 'err' Object: ", v] ]
    vs   -> fromChunks [ encodeUtf8 . mconcat . intersperse ": " $ vs ]
 
 
@@ -167,7 +171,6 @@ getToken rc mgr f = do
 getListList :: RtmConfig -> Manager -> RtmM [RtmList]
 getListList rc mgr = do
   ll <- callAuthMethod rc mgr methodListsGetList []
-  putStrLn $ tshow ll
   return . rtmListList $ ll
 
 

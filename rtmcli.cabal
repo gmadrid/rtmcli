@@ -68,7 +68,8 @@ executable rtmcli
                  http-client-tls,
                  http-types,
                  mtl,
-                 process
+                 process,
+                 readline
 
   
   -- Directories containing source files.

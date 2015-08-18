@@ -3,12 +3,14 @@
 
 import ClassyPrelude
 import Control.Monad.Except (catchError, runExceptT, throwError)
+import LsTask
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
 import Prelude (Read(..), read)
 import RtmApi
 import RtmArgs
 import RtmConfig
+import System.Console.Readline (addHistory, readline)
 import System.Directory
 import System.Exit
 import System.FilePath
@@ -76,16 +78,27 @@ checkToken :: RtmConfig -> RtmM Bool
 checkToken rc = return True
 
 
-showLists :: RtmConfig -> Manager -> RtmM ()
-showLists rc m = do
-  getListList rc m
-  return ()
+processLine :: RtmConfig -> Manager -> Text -> RtmM ()
+processLine rc mgr l = case words l of
+                        c@"ls" : args -> lsTask rc mgr c args
+                        _             -> putStrLn "FOO"
+
+
+loop :: RtmConfig -> Manager -> RtmM ()
+loop rc mgr = do
+  maybeLine <- liftIO $ readline "rtm % "
+  case maybeLine of
+   Nothing     -> return () -- EOF / control-d
+   Just "exit" -> return ()
+   Just line   -> do liftIO $ addHistory line
+                     processLine rc mgr . fromString $ line
+                     loop rc mgr
 
 
 runEverything :: Options -> Manager -> RtmM ()
 runEverything opts mgr = do
   rc <- setup opts mgr
-  workOrDie $ showLists rc mgr
+  loop rc mgr
 
 
 main = do
