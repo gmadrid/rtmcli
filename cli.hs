@@ -15,10 +15,11 @@ import System.FilePath
 import System.Process
 
 import qualified Data.ByteString.Char8 as C8
+import qualified Data.ByteString.Lazy.Char8 as LC8
 
 workOrDie :: RtmM a -> RtmM a
 workOrDie f = f `catchError` (\e -> do
-                                 hPutStrLn stderr $ tshow e
+                                 liftIO $ LC8.hPutStrLn stderr e
                                  liftIO exitFailure)
   
 ensureToken :: RtmConfig -> Manager -> RtmM RtmConfig

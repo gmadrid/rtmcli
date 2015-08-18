@@ -13,6 +13,7 @@ import ClassyPrelude
 import Control.Monad.Except (ExceptT(..))
 import Crypto.Hash.MD5
 import Data.Aeson
+import Data.Aeson.Types (parseEither)
 import Network.HTTP.Client
 import Network.HTTP.Types
 import Numeric
@@ -90,14 +91,16 @@ callMethod rc mgr m ps = do
             let jo = decodeStrict c
             let ersp = checkJo jo
 
-            -- Outside either checks for an err in the rsp.
+            -- either checks for an err in the rsp.
             return $ either
               Left
-              -- TODO: there is an extra parse here that needs to go away.
-              --       try to convest the rsp Object to the FromJSON
-              -- Inside either accounts for problems during FromJSON
-              (\_ -> either (Left . fromString) Right (eitherDecodeStrict c))
+              (\rsp -> liftString $ parseEither parseJSON rsp)
               ersp
+
+
+liftString :: Either String b -> Either LByteString b
+liftString (Left s)    = Left . fromString $ s
+liftString (Right b) = Right b
 
 
 -- Check the status of the response, return Right rsp if status is "ok".
@@ -182,8 +185,7 @@ data RtmFrob = RtmFrob { rtmFrob :: String }
             deriving (Show)
 
 instance FromJSON RtmFrob where
-  parseJSON (Object v) = RtmFrob <$> (rsp >>= (.: frobJsonKey))
-    where rsp = v .: rspJsonKey
+  parseJSON (Object rsp) = RtmFrob <$> (rsp .: frobJsonKey)
   parseJSON _ = mzero
 
 
@@ -193,11 +195,10 @@ data TokenResponse = TokenResponse {
   } deriving Show
 
 instance FromJSON TokenResponse where
-  parseJSON (Object v) = TokenResponse <$>
-                         (auth >>= (.: tokenJsonKey)) <*>
-                         (auth >>= (.: permsJsonKey))
-    where rsp  = v .: rspJsonKey
-          auth = rsp >>= (.: authJsonKey)
+  parseJSON (Object rsp) = TokenResponse <$>
+                           (auth >>= (.: tokenJsonKey)) <*>
+                           (auth >>= (.: permsJsonKey))
+    where auth = rsp .: authJsonKey
   parseJSON _ = mzero
 
 data RtmListList = RtmListList {
@@ -205,10 +206,9 @@ data RtmListList = RtmListList {
   } deriving Show
 
 instance FromJSON RtmListList where
-  parseJSON (Object v) = RtmListList <$>
-                         (lsts >>= (.: listJsonKey))
-    where rsp  = v .: rspJsonKey
-          lsts = rsp >>= (.: listsJsonKey)
+  parseJSON (Object rsp) = RtmListList <$>
+                           (lsts >>= (.: listJsonKey))
+    where lsts = rsp .: listsJsonKey
   parseJSON _ = mzero
 
 data RtmList = RtmList {
