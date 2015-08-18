@@ -87,7 +87,6 @@ callMethod rc mgr m ps = do
     where readResponse rsp = do
             -- {"rsp":{"stat":"ok","frob":"a5594c8ca48a0e33d44cd8edf8c56ec55728f4b0"}}
             c <- brRead $ responseBody rsp
-            -- TODO: see if decodeStrictEither will get you a better err msg.
             let ejo = liftString $ eitherDecodeStrict c
             let ersp = checkJo ejo
 
