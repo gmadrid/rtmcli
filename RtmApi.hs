@@ -94,7 +94,7 @@ callMethod rc mgr m ps = do
             -- either checks for an err in the rsp.
             return $ either
               Left
-              (\rsp -> liftString $ parseEither parseJSON rsp)
+              (liftString . parseEither parseJSON)
               ersp
 
 
@@ -126,12 +126,12 @@ responseErr rsp = do
   -- TODO: improve the way that this reports errors in absence of some piece.
   Left $ case vals of
    []   -> "Badly formed 'err' Object in error response"
-   v:[] -> fromChunks [ encodeUtf8 . mconcat $ ["Partially formed 'err' Object: ", v] ]
+   [v] -> fromChunks [ encodeUtf8 . mconcat $ ["Partially formed 'err' Object: ", v] ]
    vs   -> fromChunks [ encodeUtf8 . mconcat . intersperse ": " $ vs ]
 
 
-maybeAsEither :: a -> (Maybe b) -> Either a b
-maybeAsEither msg mb = maybe (Left msg) Right mb
+maybeAsEither :: a -> Maybe b -> Either a b
+maybeAsEither msg = maybe (Left msg) Right
 
 
 grabObjectVal :: LByteString -> Value -> Either LByteString Object
