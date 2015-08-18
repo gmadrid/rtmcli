@@ -9,7 +9,7 @@ import Prelude (Read(..), read)
 import RtmApi
 import RtmArgs
 import RtmConfig
-import System.Console.Readline (readline)
+import System.Console.Readline (addHistory, readline)
 import System.Directory
 import System.Exit
 import System.FilePath
@@ -77,20 +77,23 @@ checkToken :: RtmConfig -> RtmM Bool
 checkToken rc = return True
 
 
-showLists :: RtmConfig -> Manager -> RtmM ()
-showLists rc m = do
-  getListList rc m
-  return ()
+processLine :: Text -> RtmM ()
+processLine l = case words l of
+                 c@"ls" : args -> lsTask c args
+                 _             -> putStrLn "FOO"
 
+
+lsTask :: Text -> [Text] -> RtmM ()
+lsTask cmd args = putStrLn "LS is the thing"
 
 loop :: RtmConfig -> Manager -> RtmM ()
 loop rc mgr = do
-  maybeLine <- readline "rtm % "
+  maybeLine <- liftIO $ readline "rtm % "
   case maybeLine of
    Nothing     -> return () -- EOF / control-d
    Just "exit" -> return ()
-   Just line   -> do addHistory line
-                     putStrLn $ "input " `mappend` line
+   Just line   -> do liftIO $ addHistory line
+                     processLine . fromString $ line
                      loop rc mgr
 
 
@@ -98,7 +101,6 @@ runEverything :: Options -> Manager -> RtmM ()
 runEverything opts mgr = do
   rc <- setup opts mgr
   loop rc mgr
---  workOrDie $ showLists rc mgr
 
 
 main = do
