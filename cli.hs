@@ -3,6 +3,7 @@
 
 import ClassyPrelude
 import Control.Monad.Except (catchError, runExceptT, throwError)
+import LsTask
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
 import Prelude (Read(..), read)
@@ -77,14 +78,11 @@ checkToken :: RtmConfig -> RtmM Bool
 checkToken rc = return True
 
 
-processLine :: Text -> RtmM ()
-processLine l = case words l of
-                 c@"ls" : args -> lsTask c args
-                 _             -> putStrLn "FOO"
+processLine :: RtmConfig -> Manager -> Text -> RtmM ()
+processLine rc mgr l = case words l of
+                        c@"ls" : args -> lsTask rc mgr c args
+                        _             -> putStrLn "FOO"
 
-
-lsTask :: Text -> [Text] -> RtmM ()
-lsTask cmd args = putStrLn "LS is the thing"
 
 loop :: RtmConfig -> Manager -> RtmM ()
 loop rc mgr = do
@@ -93,7 +91,7 @@ loop rc mgr = do
    Nothing     -> return () -- EOF / control-d
    Just "exit" -> return ()
    Just line   -> do liftIO $ addHistory line
-                     processLine . fromString $ line
+                     processLine rc mgr . fromString $ line
                      loop rc mgr
 
 
