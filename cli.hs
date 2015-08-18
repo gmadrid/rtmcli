@@ -9,6 +9,7 @@ import Prelude (Read(..), read)
 import RtmApi
 import RtmArgs
 import RtmConfig
+import System.Console.Readline (readline)
 import System.Directory
 import System.Exit
 import System.FilePath
@@ -82,10 +83,22 @@ showLists rc m = do
   return ()
 
 
+loop :: RtmConfig -> Manager -> RtmM ()
+loop rc mgr = do
+  maybeLine <- readline "rtm % "
+  case maybeLine of
+   Nothing     -> return () -- EOF / control-d
+   Just "exit" -> return ()
+   Just line   -> do addHistory line
+                     putStrLn $ "input " `mappend` line
+                     loop rc mgr
+
+
 runEverything :: Options -> Manager -> RtmM ()
 runEverything opts mgr = do
   rc <- setup opts mgr
-  workOrDie $ showLists rc mgr
+  loop rc mgr
+--  workOrDie $ showLists rc mgr
 
 
 main = do
