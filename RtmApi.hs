@@ -88,8 +88,8 @@ callMethod rc mgr m ps = do
             -- {"rsp":{"stat":"ok","frob":"a5594c8ca48a0e33d44cd8edf8c56ec55728f4b0"}}
             c <- brRead $ responseBody rsp
             -- TODO: see if decodeStrictEither will get you a better err msg.
-            let jo = decodeStrict c
-            let ersp = checkJo jo
+            let ejo = liftString $ eitherDecodeStrict c
+            let ersp = checkJo ejo
 
             -- either checks for an err in the rsp.
             return $ either
@@ -105,8 +105,8 @@ liftString (Right b) = Right b
 
 -- Check the status of the response, return Right rsp if status is "ok".
 -- Otherwise, return Left errmsg.
-checkJo :: Maybe Value -> Either LByteString Value
-checkJo (Just (Object o)) = do
+checkJo :: Either LByteString Value -> Either LByteString Value
+checkJo (Right (Object o)) = do
   rspv <- maybeAsEither "'rsp' is missing from JSON result" (lookup "rsp" o)
   rsp <- grabObjectVal  "'rsp' is not Object in JSON result" rspv
   stv <- maybeAsEither "'stat' is missing from JSON result" (lookup "stat" rsp)
@@ -114,7 +114,8 @@ checkJo (Just (Object o)) = do
   if st == "ok"
     then Right rspv
     else responseErr rsp
-checkJo _ = Left "Invalid JSON result is not Object."
+checkJo (Left errmsg) = Left errmsg
+checkJo _ = Left "Invalid JSON result is not Object"
 
 
 -- {"rsp":{"stat":"fail","err":{"code":"100","msg":"Invalid API Key"}}}
