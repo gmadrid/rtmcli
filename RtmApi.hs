@@ -76,7 +76,7 @@ buildUrl r b ps = b ++ q
 
 callAuthMethod :: FromJSON r => RtmConfig -> Manager -> ByteString -> Params -> RtmM r
 callAuthMethod rc mgr m ps = callMethod rc mgr m ((authTokenParam, token rc) : ps)
-  
+
 
 callMethod :: FromJSON r => RtmConfig -> Manager -> ByteString -> Params -> RtmM r
 callMethod rc mgr m ps = do
@@ -84,13 +84,69 @@ callMethod rc mgr m ps = do
   req <- parseUrl . C8.unpack $ u
   ExceptT $ withResponse req mgr readResponse
     where readResponse rsp = do
+            -- {"rsp":{"stat":"ok","frob":"a5594c8ca48a0e33d44cd8edf8c56ec55728f4b0"}}
             c <- brRead $ responseBody rsp
----            putStrLn $ tshow c
-            let mj = decode $ fromStrict c
-            return $ maybe
-              (Left "Decode from JSON failed.")
-              Right
-              mj
+            -- TODO: see if decodeStrictEither will get you a better err msg.
+            let jo = decodeStrict c
+            let ersp = checkJo jo
+
+            -- Outside either checks for an err in the rsp.
+            return $ either
+              Left
+              -- TODO: there is an extra parse here that needs to go away.
+              --       try to convest the rsp Object to the FromJSON
+              -- Inside either accounts for problems during FromJSON
+              (\_ -> either (Left . fromString) Right (eitherDecodeStrict c))
+              ersp
+
+
+-- Check the status of the response, return Right rsp if status is "ok".
+-- Otherwise, return Left errmsg.
+checkJo :: Maybe Value -> Either LByteString Value
+checkJo (Just (Object o)) = do
+  rspv <- maybeAsEither "'rsp' is missing from JSON result" (lookup "rsp" o)
+  rsp <- grabObjectVal  "'rsp' is not Object in JSON result" rspv
+  stv <- maybeAsEither "'stat' is missing from JSON result" (lookup "stat" rsp)
+  st <- grabStringVal "'stat' is not Object in JSON result" stv
+  if st == "ok"
+    then Right rspv
+    else responseErr rsp
+checkJo _ = Left "Invalid JSON result is not Object."
+
+
+-- {"rsp":{"stat":"fail","err":{"code":"100","msg":"Invalid API Key"}}}
+responseErr :: Object -> Either LByteString Value
+responseErr rsp = do
+  errv <- maybeAsEither "'err' object is missing in error response" (lookup "err" rsp)
+  err <- grabObjectVal "'err' is not Object in error response" errv
+  let vals = mapMaybe (getStringVal err) ["code", "msg"]
+  -- TODO: improve the way that this reports errors in absence of some piece.
+  Left $ case vals of
+   []   -> "Badly formed 'err' Object in error response"
+   v:[] -> fromChunks [ encodeUtf8 . mconcat $ ["Partially formed 'err' Object: ", v] ]
+   vs   -> fromChunks [ encodeUtf8 . mconcat . intersperse ": " $ vs ]
+
+
+maybeAsEither :: a -> (Maybe b) -> Either a b
+maybeAsEither msg mb = maybe (Left msg) Right mb
+
+
+grabObjectVal :: LByteString -> Value -> Either LByteString Object
+grabObjectVal _ (Object o) = Right o
+grabObjectVal msg _        = Left msg
+
+
+grabStringVal :: LByteString -> Value -> Either LByteString Text
+grabStringVal _ (String s) = Right s
+grabStringVal msg _        = Left msg
+
+
+getStringVal :: Object -> Text -> Maybe Text
+getStringVal h k = do
+  val <- lookup k h
+  case val of
+   (String t) -> Just t
+   _          -> Nothing
 
 
 getFrob :: RtmConfig -> Manager -> RtmM ByteString
@@ -119,7 +175,7 @@ signParams secret ps = fromString dsp
         dsp = foldr (\w acc -> twoDigitHex w ++ acc) mempty hsh
         twoDigitHex w = drop (length s - 2) s
           where s = "00" ++ showHex w mempty
-        
+
 
 
 data RtmFrob = RtmFrob { rtmFrob :: String }
@@ -129,7 +185,7 @@ instance FromJSON RtmFrob where
   parseJSON (Object v) = RtmFrob <$> (rsp >>= (.: frobJsonKey))
     where rsp = v .: rspJsonKey
   parseJSON _ = mzero
-  
+
 
 data TokenResponse = TokenResponse {
   trToken :: String,
