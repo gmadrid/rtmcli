@@ -4,7 +4,6 @@
 module LsTask (lsTask) where
 
 import ClassyPrelude
-import Control.Monad
 import Network.HTTP.Client
 import RtmApi
 
@@ -30,11 +29,11 @@ splitIntoPieces _ [] = []
 splitIntoPieces n xs = let (t, ts) = splitAt n xs in
                         t : splitIntoPieces n ts
 
-joinAcross :: (Show a, Monoid a) => [[a]] -> [a]
+joinAcross :: (Show a, MonoFoldable a, Monoid a) => [[a]] -> [a]
 joinAcross [] = []
 joinAcross nss = let pairs = mapMaybe uncons nss
                      (ts, rests) = unzip pairs
-                 in concat ts : joinAcross rests
+                 in filter (not . null) $ concat ts : (joinAcross rests)
 
 maxLength :: [Text] -> Int
 maxLength = foldr (\e acc -> max (length e) acc) 0
