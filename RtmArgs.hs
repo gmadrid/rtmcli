@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module RtmArgs (Options,
+                optCommands,
                 optRefreshToken,
                 parseOpts
                ) where
@@ -10,14 +11,23 @@ import ClassyPrelude
 import System.Console.GetOpt
 import System.Environment
 
-data Options = Options { optRefreshToken :: Bool }
+data Options = Options { optCommands :: [Text],
+                         optRefreshToken :: Bool
+                       }
 
 defaultOptions = Options {
+  optCommands = [],
   optRefreshToken = False
   }
 
 options :: [ OptDescr (Options -> Options) ]
-options = [ Option [] ["refresh_token"]
+options = [ Option "e" []
+            (ReqArg (\e opts -> let te = fromString e in
+                      opts { optCommands = (optCommands opts) ++ [te] })
+             "CMD")
+            "Execute this command and exit.",
+
+            Option [] ["refresh_token"]
             (NoArg (\o -> o { optRefreshToken = True }))
             "Force a token refresh."
           ]

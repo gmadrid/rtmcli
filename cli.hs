@@ -95,10 +95,17 @@ loop rc mgr = do
                      loop rc mgr
 
 
+
+processCommands :: RtmConfig -> Manager -> [Text] -> RtmM ()
+processCommands rc mgr cmds = mapM_ (processLine rc mgr) cmds 
+
+
 runEverything :: Options -> Manager -> RtmM ()
 runEverything opts mgr = do
   rc <- setup opts mgr
-  loop rc mgr
+  if null $ optCommands opts
+    then loop rc mgr
+    else processCommands rc mgr $ optCommands opts
 
 
 main = do
