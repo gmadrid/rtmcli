@@ -10,7 +10,7 @@ import Control.Monad.Except (throwError)
 import Data.Char
 import Prelude (Read(..), read)
 import RtmApi
-import RtmMonad
+import Rtm.Types
 import System.Directory
 import System.IO (withFile, IOMode(WriteMode))
 

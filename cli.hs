@@ -12,7 +12,7 @@ import Prelude (Read(..), read)
 import RtmApi
 import RtmArgs
 import RtmConfig
-import RtmMonad
+import Rtm.Types
 import System.Console.Readline (addHistory, readline)
 import System.Directory
 import System.Exit

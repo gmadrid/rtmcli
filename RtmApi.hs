@@ -20,7 +20,7 @@ import Data.Aeson.Types (parseEither)
 import Network.HTTP.Client
 import Network.HTTP.Types
 import Numeric
-import RtmMonad
+import Rtm.Types
 
 import qualified Data.ByteString.Char8 as C8
 

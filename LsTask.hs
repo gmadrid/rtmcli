@@ -7,7 +7,7 @@ import ClassyPrelude
 import Data.List (transpose)
 import Network.HTTP.Client
 import RtmApi
-import RtmMonad
+import Rtm.Types
 
 padding = 2 :: Int
 screenWidth = 80 :: Int

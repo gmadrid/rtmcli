@@ -1,10 +1,10 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module RtmMonad (RtmConfig(..),
-                 RtmM,
-                 RtmEnv(..)
-                )
+module Rtm.Types (RtmConfig(..),
+                  RtmM,
+                  RtmEnv(..)
+                 )
        where
 
 import ClassyPrelude
