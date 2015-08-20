@@ -8,7 +8,12 @@ module RtmApi (authUrl,
                getToken,
 
                RtmList,
-               rtmListName
+               rtmListArchived,
+               rtmListDeleted,
+               rtmListId,
+               rtmListLocked,
+               rtmListName,
+               rtmListSmart
               ) where
 
 import ClassyPrelude
@@ -16,7 +21,7 @@ import Control.Monad.Except (ExceptT(..))
 import Control.Monad.Reader (reader)
 import Crypto.Hash.MD5
 import Data.Aeson
-import Data.Aeson.Types (parseEither)
+import Data.Aeson.Types (Parser, parseEither)
 import Network.HTTP.Client
 import Network.HTTP.Types
 import Numeric
@@ -45,15 +50,19 @@ methodParam      = "method"
 permsParam       = "perms"
 permsDeleteValue = "delete"
 
-authJsonKey  = "auth"
-frobJsonKey  = "frob"
-idJsonKey    = "id"
-listJsonKey  = "list"
-listsJsonKey = "lists"
-nameJsonKey  = "name"
-permsJsonKey = "perms"
-rspJsonKey   = "rsp"
-tokenJsonKey = "token"
+archivedJsonKey = "archived"
+authJsonKey     = "auth"
+deletedJsonKey  = "deleted"
+frobJsonKey     = "frob"
+idJsonKey       = "id"
+listJsonKey     = "list"
+listsJsonKey    = "lists"
+lockedJsonKey   = "locked"
+nameJsonKey     = "name"
+permsJsonKey    = "perms"
+rspJsonKey      = "rsp"
+smartJsonKey    = "smart"
+tokenJsonKey    = "token"
 
 
 methodUrl :: RtmConfig -> ByteString -> Params -> ByteString
@@ -216,11 +225,26 @@ instance FromJSON RtmListList where
 
 data RtmList = RtmList {
   rtmListName :: Text,
-  rtmListId :: Text
+  rtmListId :: Text,
+  rtmListArchived :: Bool,
+  rtmListDeleted :: Bool,
+  rtmListLocked :: Bool,
+  rtmListSmart :: Bool
   } deriving Show
 
 instance FromJSON RtmList where
   parseJSON (Object v) = RtmList <$>
                          (v .: nameJsonKey) <*>
-                         (v .: idJsonKey)
+                         (v .: idJsonKey) <*>
+                         (withStringBool False v archivedJsonKey) <*>
+                         (withStringBool False v deletedJsonKey) <*>
+                         (withStringBool False v lockedJsonKey) <*>
+                         (withStringBool False v smartJsonKey)
   parseJSON _ = mzero
+
+withStringBool :: Bool -> Object -> Text -> Parser Bool
+withStringBool d o k = pure $ maybe False (s2b d) (lookup k o)
+  where s2b d s
+          | s == "0"  = False
+          | s == "1"  = True
+          | otherwise = d

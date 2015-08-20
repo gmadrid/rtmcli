@@ -15,7 +15,28 @@ screenWidth = 80 :: Int
 lsTask :: Text -> [Text] -> RtmM ()
 lsTask cmd args = do
   lists <- getListList
-  putStrLn . formatLists $ lists
+  case args of
+       "-l":_ -> putStrLn . longFormatLists $ lists
+       _      -> putStrLn . formatLists $ lists
+
+
+longFormatLists :: [RtmList] -> Text
+longFormatLists ls = unlines outLines
+  where (names, ids, flgs) =
+          unzip3 $ map tupl ls
+        tupl l = (rtmListName l, flags l, rtmListId l)
+        flags l = choice (rtmListSmart l) "s" " " ++
+                  choice (rtmListDeleted l) "d" " " ++
+                  choice (rtmListArchived l) "a" " " ++
+                  choice (rtmListLocked l) "l" " "
+        outLines = zipWith3 (\n i s -> n ++ "  " ++ i ++ "  " ++ s)
+                   (sameLen names) (sameLen ids) flgs
+        sameLen xs = flushLeft (maxLength xs) xs
+
+
+flushLeft :: Int -> [Text] -> [Text]
+flushLeft n xs = [ take n (x ++ replicate n ' ') | x <- xs ]
+
 
 formatLists :: [RtmList] -> Text
 formatLists ls =
@@ -26,6 +47,10 @@ formatLists ls =
       columns = splitIntoPieces numPerCol names
       rows = map (concatMap (leftJ colWidth)) (transpose columns)
   in intercalate "\n" rows
+
+
+choice :: Bool -> a -> a -> a
+choice b y n = if b then y else n
 
 
 funkyDiv :: Integral a => a -> a -> a
