@@ -7,13 +7,14 @@ import ClassyPrelude
 import Data.List (transpose)
 import Network.HTTP.Client
 import RtmApi
+import RtmMonad
 
 padding = 2 :: Int
 screenWidth = 80 :: Int
 
-lsTask :: RtmConfig -> Manager -> Text -> [Text] -> RtmM ()
-lsTask rc mgr cmd args = do
-  lists <- getListList rc mgr
+lsTask :: Text -> [Text] -> RtmM ()
+lsTask cmd args = do
+  lists <- getListList
   putStrLn . formatLists $ lists
 
 formatLists :: [RtmList] -> Text

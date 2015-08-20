@@ -23,7 +23,7 @@ defaultOptions = Options {
 options :: [ OptDescr (Options -> Options) ]
 options = [ Option "e" []
             (ReqArg (\e opts -> let te = fromString e in
-                      opts { optCommands = (optCommands opts) ++ [te] })
+                      opts { optCommands = optCommands opts ++ [te] })
              "CMD")
             "Execute this command and exit.",
 
@@ -39,4 +39,3 @@ parseOpts = do
    (o,n,[]  ) -> return (foldl' (flip id) defaultOptions o, fmap fromString n)
    (_,_,errs) -> ioError (userError (concat errs ++ usageInfo header options))
      where header = "Usage: favwrite [OPTION...]"
-

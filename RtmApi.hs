@@ -1,9 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module RtmApi (RtmConfig(..),
-               RtmM,
-               authUrl,
+module RtmApi (authUrl,
 
                getFrob,
                getListList,
@@ -15,24 +13,19 @@ module RtmApi (RtmConfig(..),
 
 import ClassyPrelude
 import Control.Monad.Except (ExceptT(..))
+import Control.Monad.Reader (reader)
 import Crypto.Hash.MD5
 import Data.Aeson
 import Data.Aeson.Types (parseEither)
 import Network.HTTP.Client
 import Network.HTTP.Types
 import Numeric
+import RtmMonad
 
 import qualified Data.ByteString.Char8 as C8
 
-type RtmM   = ExceptT LByteString IO
 type Param  = (ByteString, ByteString)
 type Params = [ Param ]
-
-data RtmConfig = RtmConfig {
-  apiKey :: ByteString,
-  secret :: ByteString,
-  token  :: ByteString
-  } deriving (Read, Show)
 
 authBaseUrl = "https://www.rememberthemilk.com/services/auth/"
 baseUrl     = "https://api.rememberthemilk.com/services/rest/"
@@ -79,15 +72,19 @@ buildUrl r b ps = b ++ q
         q = renderSimpleQuery True $ (apiSigParam, sig) : ps'
 
 
-callAuthMethod :: FromJSON r => RtmConfig -> Manager -> ByteString -> Params -> RtmM r
-callAuthMethod rc mgr m ps = callMethod rc mgr m ((authTokenParam, token rc) : ps)
+callAuthMethod :: FromJSON r => ByteString -> Params -> RtmM r
+callAuthMethod m ps = do
+  rc <- reader envConfig
+  callMethod m ((authTokenParam, token rc) : ps)
 
 
-callMethod :: FromJSON r => RtmConfig -> Manager -> ByteString -> Params -> RtmM r
-callMethod rc mgr m ps = do
+callMethod :: FromJSON r => ByteString -> Params -> RtmM r
+callMethod m ps = do
+  rc <- reader envConfig
+  mgr <- reader envMgr
   let u = methodUrl rc m ps
   req <- parseUrl . C8.unpack $ u
-  ExceptT $ withResponse req mgr readResponse
+  ReaderT (\r -> ExceptT $ withResponse req mgr readResponse)
     where readResponse rsp = do
             -- {"rsp":{"stat":"ok","frob":"a5594c8ca48a0e33d44cd8edf8c56ec55728f4b0"}}
             c <- brRead $ responseBody rsp
@@ -156,21 +153,21 @@ getStringVal h k = do
    _          -> Nothing
 
 
-getFrob :: RtmConfig -> Manager -> RtmM ByteString
-getFrob rc mgr = do
-  fr <- callMethod rc mgr methodGetFrob []
+getFrob :: RtmM ByteString
+getFrob = do
+  fr <- callMethod methodGetFrob []
   return . fromString . rtmFrob $ fr
 
 
-getToken :: RtmConfig -> Manager -> ByteString -> RtmM ByteString
-getToken rc mgr f = do
-  tk <- callMethod rc mgr methodGetToken [ (frobParam, f) ]
+getToken :: ByteString -> RtmM ByteString
+getToken f = do
+  tk <- callMethod methodGetToken [ (frobParam, f) ]
   return . fromString . trToken $ tk
 
 
-getListList :: RtmConfig -> Manager -> RtmM [RtmList]
-getListList rc mgr = do
-  ll <- callAuthMethod rc mgr methodListsGetList []
+getListList :: RtmM [RtmList]
+getListList = do
+  ll <- callAuthMethod methodListsGetList []
   return . rtmListList $ ll
 
 
