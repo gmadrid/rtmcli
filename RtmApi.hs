@@ -20,6 +20,7 @@ import Data.Aeson.Types (parseEither)
 import Network.HTTP.Client
 import Network.HTTP.Types
 import Numeric
+import RtmArgs
 import Rtm.Types
 
 import qualified Data.ByteString.Char8 as C8
@@ -82,12 +83,14 @@ callMethod :: FromJSON r => ByteString -> Params -> RtmM r
 callMethod m ps = do
   rc <- reader envConfig
   mgr <- reader envMgr
+  dump <- reader (optDumpJson . envOpts)
   let u = methodUrl rc m ps
   req <- parseUrl . C8.unpack $ u
-  ReaderT (\r -> ExceptT $ withResponse req mgr readResponse)
-    where readResponse rsp = do
+  ReaderT (\r -> ExceptT $ withResponse req mgr (readResponse dump))
+    where readResponse dump rsp = do
             -- {"rsp":{"stat":"ok","frob":"a5594c8ca48a0e33d44cd8edf8c56ec55728f4b0"}}
             c <- brRead $ responseBody rsp
+            if dump then C8.hPutStr stderr c else return ()
             let ejo = liftString $ eitherDecodeStrict c
             let ersp = checkJo ejo
 
