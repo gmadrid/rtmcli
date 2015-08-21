@@ -24,6 +24,7 @@ instance Default Options where
     optRefreshToken = False
     }
 
+
 options :: [ OptDescr (Options -> Options) ]
 options = [ Option "e" []
             (ReqArg (\e opts -> let te = fromString e in
@@ -31,14 +32,15 @@ options = [ Option "e" []
              "CMD")
             "Execute this command and exit.",
 
-            Option [] ["dump_json"]
+            Option [] ["dump-json"]
             (NoArg (\o -> o { optDumpJson = True }))
             "Dump text of JSON responses.",
 
-            Option [] ["refresh_token"]
+            Option [] ["refresh-token"]
             (NoArg (\o -> o { optRefreshToken = True }))
             "Force a token refresh."
           ]
+
 
 parseOpts :: IO (Options, [Text])
 parseOpts = do
