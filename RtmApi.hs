@@ -139,13 +139,8 @@ responseErr rsp = do
   -- TODO: improve the way that this reports errors in absence of some piece.
   Left $ case vals of
    []   -> "Badly formed 'err' Object in error response"
-<<<<<<< HEAD
    v:[] -> fromChunks [ encodeUtf8 . mconcat $ ["Partially formed 'err' Object: ", v] ]
    vs   -> fromChunks [ encodeUtf8 . mconcat . intersperse " - " $ vs ]
-=======
-   [v]  -> fromChunks [ encodeUtf8 . mconcat $ ["Partially formed 'err' Object: ", v] ]
-   vs   -> fromChunks [ encodeUtf8 . mconcat . intersperse ": " $ vs ]
->>>>>>> 6043b708f77afb24322ea3b66ea305d57c2b000c
 
 
 maybeAsEither :: a -> Maybe b -> Either a b

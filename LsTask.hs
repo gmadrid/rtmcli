@@ -14,6 +14,10 @@ screenWidth = 80 :: Int
 
 lsTask :: Text -> [Text] -> RtmM ()
 lsTask cmd args = do
+  -- ls can take several different styles
+  --   ls [-l] (no args) - list the lists
+  --   ls [-l] @id       - list the tasks in the specified list
+  --   ls [-l] *         - list the tasks in the specified list
   lists <- getListList
   case args of
        "-l":_ -> putStrLn . longFormatLists $ lists

@@ -24,11 +24,7 @@ import qualified Data.ByteString.Lazy.Char8 as LC8
 
 workOrDie :: RtmM a -> RtmM a
 workOrDie f = f `catchError` (\e -> do
-<<<<<<< HEAD
                                  liftIO $ LC8.hPutStrLn stderr ("Error: " `mappend` e)
-=======
-                                 liftIO $ LC8.hPutStrLn stderr e
->>>>>>> 6043b708f77afb24322ea3b66ea305d57c2b000c
                                  liftIO exitFailure)
 
 ensureToken :: RtmM RtmConfig
