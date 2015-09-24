@@ -124,7 +124,7 @@ responseErr rsp = do
   Left $ case vals of
    []   -> "Badly formed 'err' Object in error response"
    v:[] -> fromChunks [ encodeUtf8 . mconcat $ ["Partially formed 'err' Object: ", v] ]
-   vs   -> fromChunks [ encodeUtf8 . mconcat . intersperse ": " $ vs ]
+   vs   -> fromChunks [ encodeUtf8 . mconcat . intersperse " - " $ vs ]
 
 
 maybeAsEither :: a -> (Maybe b) -> Either a b
