@@ -2,3 +2,4 @@
 *.o
 *~
 dist/
+.DS_Store

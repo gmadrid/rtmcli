@@ -1,33 +1,37 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module RtmApi (RtmConfig(..),
-               RtmM,
-               authUrl,
+module RtmApi (authUrl,
+
                getFrob,
                getListList,
                getToken,
+
+               RtmList,
+               rtmListArchived,
+               rtmListDeleted,
+               rtmListId,
+               rtmListLocked,
+               rtmListName,
+               rtmListSmart
               ) where
 
 import ClassyPrelude
 import Control.Monad.Except (ExceptT(..))
+import Control.Monad.Reader (reader)
 import Crypto.Hash.MD5
 import Data.Aeson
+import Data.Aeson.Types (Parser, parseEither)
 import Network.HTTP.Client
 import Network.HTTP.Types
 import Numeric
+import RtmArgs
+import Rtm.Types
 
 import qualified Data.ByteString.Char8 as C8
 
-type RtmM   = ExceptT LByteString IO
 type Param  = (ByteString, ByteString)
 type Params = [ Param ]
-
-data RtmConfig = RtmConfig {
-  apiKey :: ByteString,
-  secret :: ByteString,
-  token  :: ByteString
-  } deriving (Read, Show)
 
 authBaseUrl = "https://www.rememberthemilk.com/services/auth/"
 baseUrl     = "https://api.rememberthemilk.com/services/rest/"
@@ -46,15 +50,19 @@ methodParam      = "method"
 permsParam       = "perms"
 permsDeleteValue = "delete"
 
-authJsonKey  = "auth"
-frobJsonKey  = "frob"
-idJsonKey    = "id"
-listJsonKey  = "list"
-listsJsonKey = "lists"
-nameJsonKey  = "name"
-permsJsonKey = "perms"
-rspJsonKey   = "rsp"
-tokenJsonKey = "token"
+archivedJsonKey = "archived"
+authJsonKey     = "auth"
+deletedJsonKey  = "deleted"
+frobJsonKey     = "frob"
+idJsonKey       = "id"
+listJsonKey     = "list"
+listsJsonKey    = "lists"
+lockedJsonKey   = "locked"
+nameJsonKey     = "name"
+permsJsonKey    = "perms"
+rspJsonKey      = "rsp"
+smartJsonKey    = "smart"
+tokenJsonKey    = "token"
 
 
 methodUrl :: RtmConfig -> ByteString -> Params -> ByteString
@@ -74,36 +82,43 @@ buildUrl r b ps = b ++ q
         q = renderSimpleQuery True $ (apiSigParam, sig) : ps'
 
 
-callAuthMethod :: FromJSON r => RtmConfig -> Manager -> ByteString -> Params -> RtmM r
-callAuthMethod rc mgr m ps = callMethod rc mgr m ((authTokenParam, token rc) : ps)
+callAuthMethod :: FromJSON r => ByteString -> Params -> RtmM r
+callAuthMethod m ps = do
+  rc <- reader envConfig
+  callMethod m ((authTokenParam, token rc) : ps)
 
 
-callMethod :: FromJSON r => RtmConfig -> Manager -> ByteString -> Params -> RtmM r
-callMethod rc mgr m ps = do
+callMethod :: FromJSON r => ByteString -> Params -> RtmM r
+callMethod m ps = do
+  rc <- reader envConfig
+  mgr <- reader envMgr
+  dump <- reader (optDumpJson . envOpts)
   let u = methodUrl rc m ps
   req <- parseUrl . C8.unpack $ u
-  ExceptT $ withResponse req mgr readResponse
-    where readResponse rsp = do
+  ReaderT (\r -> ExceptT $ withResponse req mgr (readResponse dump))
+    where readResponse dump rsp = do
             -- {"rsp":{"stat":"ok","frob":"a5594c8ca48a0e33d44cd8edf8c56ec55728f4b0"}}
             c <- brRead $ responseBody rsp
-            -- TODO: see if decodeStrictEither will get you a better err msg.
-            let jo = decodeStrict c
-            let ersp = checkJo jo
+            if dump then C8.hPutStr stderr c else return ()
+            let ejo = liftString $ eitherDecodeStrict c
+            let ersp = checkJo ejo
 
-            -- Outside either checks for an err in the rsp.
+            -- either checks for an err in the rsp.
             return $ either
               Left
-              -- TODO: there is an extra parse here that needs to go away.
-              --       try to convest the rsp Object to the FromJSON
-              -- Inside either accounts for problems during FromJSON
-              (\_ -> either (Left . fromString) Right (eitherDecodeStrict c))
+              (liftString . parseEither parseJSON)
               ersp
+
+
+liftString :: Either String b -> Either LByteString b
+liftString (Left s)    = Left . fromString $ s
+liftString (Right b) = Right b
 
 
 -- Check the status of the response, return Right rsp if status is "ok".
 -- Otherwise, return Left errmsg.
-checkJo :: Maybe Value -> Either LByteString Value
-checkJo (Just (Object o)) = do
+checkJo :: Either LByteString Value -> Either LByteString Value
+checkJo (Right (Object o)) = do
   rspv <- maybeAsEither "'rsp' is missing from JSON result" (lookup "rsp" o)
   rsp <- grabObjectVal  "'rsp' is not Object in JSON result" rspv
   stv <- maybeAsEither "'stat' is missing from JSON result" (lookup "stat" rsp)
@@ -111,7 +126,8 @@ checkJo (Just (Object o)) = do
   if st == "ok"
     then Right rspv
     else responseErr rsp
-checkJo _ = Left "Invalid JSON result is not Object."
+checkJo (Left errmsg) = Left errmsg
+checkJo _ = Left "Invalid JSON result is not Object"
 
 
 -- {"rsp":{"stat":"fail","err":{"code":"100","msg":"Invalid API Key"}}}
@@ -123,12 +139,17 @@ responseErr rsp = do
   -- TODO: improve the way that this reports errors in absence of some piece.
   Left $ case vals of
    []   -> "Badly formed 'err' Object in error response"
+<<<<<<< HEAD
    v:[] -> fromChunks [ encodeUtf8 . mconcat $ ["Partially formed 'err' Object: ", v] ]
    vs   -> fromChunks [ encodeUtf8 . mconcat . intersperse " - " $ vs ]
+=======
+   [v]  -> fromChunks [ encodeUtf8 . mconcat $ ["Partially formed 'err' Object: ", v] ]
+   vs   -> fromChunks [ encodeUtf8 . mconcat . intersperse ": " $ vs ]
+>>>>>>> 6043b708f77afb24322ea3b66ea305d57c2b000c
 
 
-maybeAsEither :: a -> (Maybe b) -> Either a b
-maybeAsEither msg mb = maybe (Left msg) Right mb
+maybeAsEither :: a -> Maybe b -> Either a b
+maybeAsEither msg = maybe (Left msg) Right
 
 
 grabObjectVal :: LByteString -> Value -> Either LByteString Object
@@ -149,22 +170,21 @@ getStringVal h k = do
    _          -> Nothing
 
 
-getFrob :: RtmConfig -> Manager -> RtmM ByteString
-getFrob rc mgr = do
-  fr <- callMethod rc mgr methodGetFrob []
+getFrob :: RtmM ByteString
+getFrob = do
+  fr <- callMethod methodGetFrob []
   return . fromString . rtmFrob $ fr
 
 
-getToken :: RtmConfig -> Manager -> ByteString -> RtmM ByteString
-getToken rc mgr f = do
-  tk <- callMethod rc mgr methodGetToken [ (frobParam, f) ]
+getToken :: ByteString -> RtmM ByteString
+getToken f = do
+  tk <- callMethod methodGetToken [ (frobParam, f) ]
   return . fromString . trToken $ tk
 
 
-getListList :: RtmConfig -> Manager -> RtmM [RtmList]
-getListList rc mgr = do
-  ll <- callAuthMethod rc mgr methodListsGetList []
-  putStrLn $ tshow ll
+getListList :: RtmM [RtmList]
+getListList = do
+  ll <- callAuthMethod methodListsGetList []
   return . rtmListList $ ll
 
 
@@ -182,8 +202,7 @@ data RtmFrob = RtmFrob { rtmFrob :: String }
             deriving (Show)
 
 instance FromJSON RtmFrob where
-  parseJSON (Object v) = RtmFrob <$> (rsp >>= (.: frobJsonKey))
-    where rsp = v .: rspJsonKey
+  parseJSON (Object rsp) = RtmFrob <$> (rsp .: frobJsonKey)
   parseJSON _ = mzero
 
 
@@ -193,11 +212,10 @@ data TokenResponse = TokenResponse {
   } deriving Show
 
 instance FromJSON TokenResponse where
-  parseJSON (Object v) = TokenResponse <$>
-                         (auth >>= (.: tokenJsonKey)) <*>
-                         (auth >>= (.: permsJsonKey))
-    where rsp  = v .: rspJsonKey
-          auth = rsp >>= (.: authJsonKey)
+  parseJSON (Object rsp) = TokenResponse <$>
+                           (auth >>= (.: tokenJsonKey)) <*>
+                           (auth >>= (.: permsJsonKey))
+    where auth = rsp .: authJsonKey
   parseJSON _ = mzero
 
 data RtmListList = RtmListList {
@@ -205,19 +223,33 @@ data RtmListList = RtmListList {
   } deriving Show
 
 instance FromJSON RtmListList where
-  parseJSON (Object v) = RtmListList <$>
-                         (lsts >>= (.: listJsonKey))
-    where rsp  = v .: rspJsonKey
-          lsts = rsp >>= (.: listsJsonKey)
+  parseJSON (Object rsp) = RtmListList <$>
+                           (lsts >>= (.: listJsonKey))
+    where lsts = rsp .: listsJsonKey
   parseJSON _ = mzero
 
 data RtmList = RtmList {
   rtmListName :: Text,
-  rtmListId :: Text
+  rtmListId :: Text,
+  rtmListArchived :: Bool,
+  rtmListDeleted :: Bool,
+  rtmListLocked :: Bool,
+  rtmListSmart :: Bool
   } deriving Show
 
 instance FromJSON RtmList where
   parseJSON (Object v) = RtmList <$>
                          (v .: nameJsonKey) <*>
-                         (v .: idJsonKey)
+                         (v .: idJsonKey) <*>
+                         (withStringBool False v archivedJsonKey) <*>
+                         (withStringBool False v deletedJsonKey) <*>
+                         (withStringBool False v lockedJsonKey) <*>
+                         (withStringBool False v smartJsonKey)
   parseJSON _ = mzero
+
+withStringBool :: Bool -> Object -> Text -> Parser Bool
+withStringBool d o k = pure $ maybe False (s2b d) (lookup k o)
+  where s2b d s
+          | s == "0"  = False
+          | s == "1"  = True
+          | otherwise = d
