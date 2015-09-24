@@ -3,6 +3,9 @@
 
 module RtmApi (authUrl,
 
+               -- Methods
+               --   As described in the RTM docs.
+               --   (https://www.rememberthemilk.com/services/api/methods/rtm.tasks.getList.rtm)
                getFrob,
                getListList,
                getToken,
