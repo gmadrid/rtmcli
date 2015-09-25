@@ -1,0 +1,23 @@
+rtm % ls
+Personal Work
+rtm % ls -a
+Personal Smart@ Work #na #computer !1 !2 !3 !0 ^today ^tomorrow
+rtm % ls #na
+be merry                 drink                eat
+forget sarah marshall    go to the beach      sleep
+rtm % ls -l #na
+13131313  be merry               2  today    
+14141414  drink
+15151515  eat                    1  Monday
+16161616  forget sarah marshall
+17171717  go to the beach
+18181818  sleep                              Home
+rtm % find due:Never
+14141414  drink
+16161616  forget sarah marshall
+17171717  go to the beach
+18181818  sleep                              Home
+rtm % pp 'be merry'
+13131313  be merry  2  tomorrow
+rtm % done 16161616
+'forget sarah marshall' marked done
